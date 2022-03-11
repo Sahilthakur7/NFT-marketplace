@@ -1,19 +1,43 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
 
-describe("Greeter", function () {
-  it("Should return the new greeting once it's changed", async function () {
-    const Greeter = await ethers.getContractFactory("Greeter");
-    const greeter = await Greeter.deploy("Hello, world!");
-    await greeter.deployed();
+describe('NFT Market', function () {
+  it('Should create and execute sales', async function () {
+    const Market = await ethers.getContractFactory('NFTMarket');
+    const market = await Market.deploy();
 
-    expect(await greeter.greet()).to.equal("Hello, world!");
+    await market.deployed();
+    const marketAddress = market.address;
 
-    const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
+    const NFT = await ethers.getContractFactory('NFT');
+    const nft = await NFT.deploy(marketAddress);
 
-    // wait until the transaction is mined
-    await setGreetingTx.wait();
+    await nft.deployed();
+    const nftAddress = nft.address;
 
-    expect(await greeter.greet()).to.equal("Hola, mundo!");
+    let listingPrice = await market.getListingPrice();
+    listingPrice = listingPrice.toString();
+
+    const auctionPrice = ethers.utils.parseUnits('100', 'ether');
+
+    await nft.createToken('https://www.mylocation.com');
+    await nft.createToken('https://www.mylocation2.com');
+
+    await market.createMarketItem(nftAddress, 1, auctionPrice, {
+      value: listingPrice,
+    });
+    await market.createMarketItem(nftAddress, 2, auctionPrice, {
+      value: listingPrice,
+    });
+
+    const [_, buyerAddress] = await ethers.getSigners();
+
+    await market
+      .connect(buyerAddress)
+      .createMarketSale(nftAddress, 2, { value: auctionPrice });
+
+    const items = await market.fetchMarketItems();
+
+    console.log('Items: ', items);
   });
 });
